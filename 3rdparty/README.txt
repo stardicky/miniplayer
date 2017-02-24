@@ -1,8 +1,8 @@
-1. ffmpeg
-FFmpeg for winÏÂÔØµØÖ·:
+ï»¿1. ffmpeg
+FFmpeg for winä¸‹è½½åœ°å€:
 https://ffmpeg.zeranoe.com/builds/
 
 2. openal
-OpenAL11CoreSDK ÏÂÔØµØÖ·£º
+OpenAL11CoreSDK ä¸‹è½½åœ°å€ï¼š
 https://www.openal.org/downloads/OpenAL11CoreSDK.zip
 https://www.openal.org/downloads/oalinst.zip
