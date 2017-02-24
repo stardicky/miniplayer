@@ -108,6 +108,11 @@ public:
         submitCommand(cmd);
     }
 
+    void mute()
+    {
+        //todo
+    }
+
     void stop()
     {
         qDebug() << __FUNCTION__;
