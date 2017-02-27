@@ -82,6 +82,7 @@ private:
     std::atomic_bool mAbort;
     std::atomic_bool mAudioInited;
     std::atomic_bool mSeekable;
+    std::atomic_bool mSynced;
     std::shared_ptr<Command> mPendingCommand;
     std::mutex mCommandMutex;
     Callback * mCallback;
@@ -142,13 +143,13 @@ public:
     {
         if(!mSeekable)
             return;
-        qDebug() << __FUNCTION__ << pos;
         if(pos < 0)
             pos = 0;
         else if(pos > mDuration)
             pos = mDuration;
-        mPosition = pos;
+        qDebug() << __FUNCTION__ << pos;
         mSeekToPosition = pos;
+        mPosition = pos;
     }
 
     double getPosition() { return mPosition; }

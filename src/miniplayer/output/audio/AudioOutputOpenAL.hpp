@@ -16,7 +16,6 @@ public:
     bool open(AVFrame * avFrame);
     bool stop();
     bool close();
-    bool isStopped();
     bool render(AVFrame * avFrame);
 private:
     bool swrConvert(AVFrame * src);

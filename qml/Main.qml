@@ -47,13 +47,15 @@ Window {
     MiniPlayer {
         id: ctlPlayer
         onPositionChanged: {
-            txtPosition.text = formatTime(ctlPlayer.position);
-            txtDuration.text = formatTime(ctlPlayer.duration);
+            var position = ctlPlayer.position;
+            var duration = ctlPlayer.duration;
+            txtPosition.text = formatTime(position);
+            txtDuration.text = formatTime(duration);
             ctlProgress.minimumValue = 0;
-            ctlProgress.maximumValue = ctlPlayer.duration;
+            ctlProgress.maximumValue = duration;
 
             if(!ctlProgress.pressed)
-                ctlProgress.value = ctlPlayer.position;
+                ctlProgress.value = position;
         }
         onEndReached: {
             txtPosition.text = "00:00:00";
@@ -107,6 +109,7 @@ Window {
     }
 
     Timer {
+        id: dumpTimer
         interval: 200
         running: true
         repeat: true
@@ -208,9 +211,9 @@ Window {
         anchors.left: parent.left
         anchors.top: parent.tops
         onClicked: {
-            //ctlPlayer.open("http://localhost:8010/1.ts");
+            ctlPlayer.open("http://localhost:9001/1.ts");
             //ctlPlayer.open("F:\\TestVideos\\1.ts");
-            ctlPlayer.open("http://localhost:8010/EP01.2015.HD720P.X264.AAC.Mandarin.CHS.mp4");
+            //ctlPlayer.open("http://localhost:9001/EP01.2015.HD720P.X264.AAC.Mandarin.CHS.mp4");
             //ctlPlayer.open("https://arch.p2sp.net/live");
             //ctlPlayer.open("https://arch.p2sp.net/ihdvod/EP01.2015.HD720P.X264.AAC.Mandarin.CHS.mp4");
             //ctlPlayer.open("https://arch.p2sp.net/tmp/new.ts");

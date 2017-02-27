@@ -99,17 +99,6 @@ bool AudioOutputOpenAL::open(AVFrame *)
     return true;
 }
 
-bool AudioOutputOpenAL::isStopped()
-{
-    if(!mContext)
-        return false;
-
-    SCOPE_LOCK_CONTEXT();
-    ALint state = 0;
-    alGetSourcei(mALSource, AL_SOURCE_STATE, &state);
-    return state == AL_STOPPED;
-}
-
 bool AudioOutputOpenAL::stop()
 {
     qDebug() << __FUNCTION__;

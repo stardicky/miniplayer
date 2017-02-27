@@ -18,7 +18,6 @@ public:
     virtual bool open(AVFrame * avFrame) = 0;
     virtual bool stop() = 0;
     virtual bool close() = 0;
-    virtual bool isStopped() = 0;
     virtual bool render(AVFrame * avFrame) = 0;
 };
 

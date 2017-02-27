@@ -7,6 +7,7 @@ MiniPlayer::MiniPlayer(Callback * callback, AudioOutput * audioOutput) :
     mCallback(callback),
     mAudioOutput(audioOutput),
     mBusy(false),
+    mSynced(false),
     mAbort(false),
     mAudioInited(false),
     mSeekable(false),
@@ -142,6 +143,7 @@ void MiniPlayer::stopThread()
     mPosition = mDuration = -1;
     mSeekable = false;
     mSeekToPosition = -1;
+    mSynced = false;
 
     qDebug() << __FUNCTION__ << "end";
 }
@@ -184,6 +186,7 @@ void MiniPlayer::openThread()
     mPosition = mDuration = -1;
     mSeekable = false;
     mSeekToPosition = -1;
+    mSynced = false;
     //-----------------------------------------------
     bool success = false;
     std::unique_ptr<int, std::function<void (int *)>> scope((int *)1, [&](void*)
@@ -198,6 +201,7 @@ void MiniPlayer::openThread()
     });
 
     mFormatContext = avformat_alloc_context();
+    //mFormatContext->flags |= AVFMT_FLAG_GENPTS;
     mFormatContext->interrupt_callback.opaque = (void *)this;
     mFormatContext->interrupt_callback.callback = &MiniPlayer::onInterruptCallback;
 
@@ -293,7 +297,7 @@ void MiniPlayer::readPacketThread()
         //seek begin ------------------------------------------
         if(mSeekable && mSeekToPosition >= 0)
         {
-            eof = false;
+            qDebug() << __FUNCTION__ << "seek start";
             mVideoPacketQueue.clear();
             mAudioPacketQueue.clear();
             mVideoFrameQueue.clear();
@@ -301,11 +305,21 @@ void MiniPlayer::readPacketThread()
             mVideoPacketQueue.appendFlushPacket();
             mAudioPacketQueue.appendFlushPacket();
             mAudioOutput->stop();
-            mClockBase = -1;
+            mSynced = false;
+            eof = false;
+            clearClock();
+
+//            while(!mAbort)
+//            {
+//                if(mVideoPacketQueue.size() == 0 && mAudioPacketQueue.size() == 0 &&
+//                   mVideoFrameQueue.size() == 0 && mAudioFrameQueue.size() == 0)
+//                    break;
+//                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+//                //qDebug() << "2222222222222222";
+//            }
 
             auto seekToPosition = mSeekToPosition;
             mPosition = seekToPosition;
-            mSeekToPosition = -1;
 
             int seekFlags = 0;
             int64_t pos = seekToPosition * AV_TIME_BASE;
@@ -314,7 +328,10 @@ void MiniPlayer::readPacketThread()
                 qWarning() << __FUNCTION__ << "avformat_seek_file" << "failure" << ret;
 
             if(mSeekToPosition == seekToPosition)
+            {
                 mSeekToPosition = -1;
+                qDebug() << __FUNCTION__ << "seek complete";
+            }
             continue;
         }
         //seek end --------------------------------------------
@@ -405,24 +422,26 @@ void MiniPlayer::videoDecodeThread()
 
         if(mVideoPacketQueue.isFlushPacket(packet))
         {
+            mVideoPacketQueue.clear();
+            mVideoFrameQueue.clear();
             avcodec_flush_buffers(mVideoStream->codec);
             continue;
         }
 
         std::unique_ptr<AVPacket, decltype(freePacketFunc)> freePacket(&packet, freePacketFunc);
 
-        int gotPicture = 0;
+        int gotFrame = 0;
 
         packet2 = packet;
         while (packet2.size > 0 && !mAbort)
         {
-            int ret = avcodec_decode_video2(mVideoStream->codec, decodedFrame, &gotPicture, &packet2);
+            int ret = avcodec_decode_video2(mVideoStream->codec, decodedFrame, &gotFrame, &packet2);
             if (ret < 0) {
                 qWarning() << __FUNCTION__ << "avcodec_decode_video2" << "failure" << ret;
                 break;
             }
 
-            if (gotPicture)
+            if (gotFrame)
                 break;
 
             packet2.size -= ret;
@@ -432,22 +451,11 @@ void MiniPlayer::videoDecodeThread()
                 break;
         }
 
-        if (gotPicture)
+        if (gotFrame && mSeekToPosition == -1)
         {
-//            assert(decodedFrame->data[0]);
-//            assert(decodedFrame->data[1]);
-//            assert(decodedFrame->data[2]);
-//            assert(decodedFrame->linesize[0]);
-//            assert(decodedFrame->linesize[1]);
-//            assert(decodedFrame->linesize[2]);
-//            assert(decodedFrame->width);
-//            assert(decodedFrame->height);
-            // 计算pts等信息.
             decodedFrame->pts = av_frame_get_best_effort_timestamp(decodedFrame);
             mVideoFrameQueue.append(av_frame_clone(decodedFrame));
         }
-
-        //qDebug() << __FUNCTION__ << "got:" << gotPicture;
     }
 
     qDebug() << __FUNCTION__ << "end";
@@ -484,6 +492,8 @@ void MiniPlayer::audioDecodeThread()
 
         if(mAudioPacketQueue.isFlushPacket(packet))
         {
+            mAudioPacketQueue.clear();
+            mAudioFrameQueue.clear();
             avcodec_flush_buffers(mAudioStream->codec);
             continue;
         }
@@ -511,19 +521,16 @@ void MiniPlayer::audioDecodeThread()
                 break;
         }
 
-        if(gotFrame)
+        if(gotFrame && mSeekToPosition == -1)
         {
             if(!mAudioInited)
             {
                 mAudioInited = true;
                 mAudioOutput->open(decodedFrame);
             }
-            // 计算pts等信息.
             decodedFrame->pts = av_frame_get_best_effort_timestamp(decodedFrame);
             mAudioFrameQueue.append(av_frame_clone(decodedFrame));
         }
-
-        //qDebug() << __FUNCTION__ << "got:" << gotFrame;
     }
 
     qDebug() << __FUNCTION__ << "end";
@@ -535,7 +542,7 @@ void MiniPlayer::videoRenderThread()
 
     for(; !mAbort; )
     {
-        if(mState == State::Paused)
+        if(mState == State::Paused || mSeekToPosition >= 0)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
@@ -543,32 +550,64 @@ void MiniPlayer::videoRenderThread()
 
         AVFrame* renderFrame = nullptr;
         bool ret = mVideoFrameQueue.acquire(&renderFrame);
-        //qDebug() << __FUNCTION__ << ret;
         if (!ret)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
             continue;
         }
 
-        // 获取当前系统时间.
         if (mClockBase < 0)
             mClockBase = systemClock();
 
-        // 起始时间.
         if (mVideoClockDrift < 0)
             mVideoClockDrift = av_q2d(mVideoStream->time_base) * mVideoStream->start_time;
 
-        // 设置当前clock.
         setVideoClock(renderFrame->pts);
+
+        if(!mSynced)
+        {
+            while(!mAbort && mState == State::Playing && mAudioClock == -1)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+
+            while(!mAbort && !mSynced && mState == State::Playing)
+            {
+                auto diff = videoClock() - audioClock();
+                if(diff >= 0.3) //audio slowest waiting drop audio
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    continue;
+                }
+                else if (diff < -0.3) //audio fastest drop video
+                {
+                    qDebug() << "drop video frame ----------" << videoClock();
+                    break;
+                }
+                else
+                {
+                    mSynced = true;
+                    qDebug() << __FUNCTION__ << "synced";
+                    break;
+                }
+            }
+
+            if(!mSynced)
+            {
+                av_frame_free(&renderFrame);
+                continue;
+            }
+        }
 
         mCallback->onVideoRender(renderFrame);
 
-        // 同步逻辑.
         auto vClock = videoClock();
         if(mSeekToPosition == -1 && abs(vClock - mPosition) > 0.3f)
         {
+            //qDebug() << "pos:" << vClock << mPosition;
             mPosition = vClock;
-            mCallback->onPositionChanged(mPosition);
+            if(!mAbort)
+                mCallback->onPositionChanged(mPosition);
         }
 
         auto duration = av_q2d(mVideoStream->time_base) * renderFrame->pkt_duration;
@@ -597,7 +636,7 @@ void MiniPlayer::audioRenderThread()
         else if(paused && mState == State::Playing)
             paused = false;
 
-        if(paused)
+        if(paused || mSeekToPosition >= 0)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
@@ -607,7 +646,6 @@ void MiniPlayer::audioRenderThread()
         AVFrame* renderFrame = nullptr;
         bool ret = mAudioFrameQueue.acquire(&renderFrame);
 
-        //qDebug() << __FUNCTION__ << ret;
         if (!ret)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
@@ -616,36 +654,48 @@ void MiniPlayer::audioRenderThread()
 
         std::unique_ptr<AVFrame, decltype(freeFrameFunc)> freeFrame(renderFrame, freeFrameFunc);
 
-        // 获取当前系统时间.
         if (mClockBase < 0)
             mClockBase = systemClock();
 
-        // 起始时间.
         if (mAudioClockDrift < 0)
             mAudioClockDrift = av_q2d(mAudioStream->time_base) * mAudioStream->start_time;
 
-        // 设置当前clock.
         setAudioClock(renderFrame->pts);
 
-        // 记录当前时间, 并计算出目标时间和时长, 然后开始渲染.
-        auto targetTime = systemClock() + (av_q2d(mAudioStream->time_base) * renderFrame->pkt_duration);
-
-        if(mAudioOutput->isStopped())
+        if(!mSynced)
         {
-            auto diff = videoClock() - audioClock();
-            if(diff >= 0.5)
-                continue;
-            else if (diff < -0.5)
+            while(!mAbort && mState == State::Playing && mVideoClock == -1)
             {
-                if(mVideoFrameQueue.size() > 0)
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                continue;
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
+
+            while(!mAbort && !mSynced && mState == State::Playing)
+            {
+                auto diff = videoClock() - audioClock();
+                if(diff >= 0.3) //audio slowest drop audio
+                {
+                    qDebug() << "drop audio frame ++++++++++" << audioClock();
+                    break;
+                }
+                else if (diff < -0.3) //audio fastest waiting drop video
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    continue;
+                }
+                else
+                {
+                    mSynced = true;
+                    qDebug() << __FUNCTION__ << "synced";
+                    break;
+                }
+            }
+
+            if(!mSynced)
+                continue;
         }
 
         bool worked = mAudioOutput->render(renderFrame);
-
-        // 判断是否需要延迟一会会.
+        auto targetTime = systemClock() + (av_q2d(mAudioStream->time_base) * renderFrame->pkt_duration);
         auto delay = targetTime - systemClock();
         if (delay > 0)
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int64_t>(delay * 1000 - (worked ? 10 : 0))));

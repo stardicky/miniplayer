@@ -9,6 +9,7 @@ extern "C"
 #include <list>
 #include <mutex>
 #include <thread>
+#include <QDebug>
 
 namespace miniplayer
 {
@@ -25,6 +26,7 @@ public:
 
     void append(AVFrame* frame)
     {
+        //qDebug() << __FUNCTION__;
         std::lock_guard<std::mutex> l(mMutex);
         mDatas.push_back(frame);
     }
@@ -78,6 +80,7 @@ public:
 
     void append(const AVPacket& pkt)
     {
+        //qDebug() << __FUNCTION__;
         std::lock_guard<std::mutex> l(mMutex);
         mDatas.push_back(pkt);
         mDataSize += pkt.size;
@@ -85,6 +88,7 @@ public:
 
     void appendFlushPacket()
     {
+        //qDebug() << __FUNCTION__;
         std::lock_guard<std::mutex> l(mMutex);
         mDatas.push_back(mFlushPacket);
     }
