@@ -156,6 +156,8 @@ public:
     double getDuration() { return mDuration; }
     bool isSeekable() { return mSeekable; }
     int getState() { return mState; }
+    void setVolume(float value) { mAudioOutput->setVolume(value); }
+    float getVolume() { return mAudioOutput->getVolume(); }
 
     void dump(DumpInfo * info)
     {

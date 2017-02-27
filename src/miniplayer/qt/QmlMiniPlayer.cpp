@@ -99,6 +99,16 @@ bool QmlMiniPlayer::seekable()
     return mPlayer->isSeekable();
 }
 
+float QmlMiniPlayer::volume()
+{
+    return mPlayer->getVolume();
+}
+
+void QmlMiniPlayer::setVolume(float val)
+{
+    mPlayer->setVolume(val);
+}
+
 QmlMiniPlayer::State QmlMiniPlayer::state()
 {
     return static_cast<State>(mPlayer->getState());

@@ -193,7 +193,7 @@ Window {
             maximumValue: 1
             onPressedChanged: {
                 if(!ctlVolume.pressed) {
-                    //ctlPlayer.position = ctlVolume.value;
+                    ctlPlayer.volume = ctlVolume.value;
                 }
             }
         }

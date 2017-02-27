@@ -51,6 +51,7 @@ class QmlMiniPlayer : public QObject, public QQmlParserStatus, private MiniPlaye
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(double duration READ duration)
     Q_PROPERTY(bool seekable READ seekable)
+    Q_PROPERTY(float volume READ volume WRITE setVolume)
 
 private:
     AudioOutputOpenAL mAudioOutput;
@@ -87,6 +88,8 @@ public:
     void setPosition(double pos);
     double duration();
     bool seekable();
+    float volume();
+    void setVolume(float val);
 
 private: //MiniPlayer::Callback
     void onVideoRender(AVFrame * frame);
