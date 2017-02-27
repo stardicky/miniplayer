@@ -104,6 +104,10 @@ public slots:
     void play();
     void pause();
     void togglePause();
+    void mute();
+    void unMute();
+    bool getMute();
+    void toggleMute();
 
 private slots:
     void videoFrameUpdated();

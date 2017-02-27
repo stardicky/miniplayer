@@ -19,6 +19,8 @@ public:
     bool render(AVFrame * avFrame);
     bool setVolume(float value);
     float getVolume();
+    bool setMute(bool value);
+    bool getMute();
 private:
     bool swrConvert(AVFrame * src);
     void swrFree();
@@ -39,6 +41,7 @@ private:
     ALenum mALFormat;
     int mALBufferState;
     float mVolume;
+    bool mMute;
 
     static std::mutex globalMutex;
 };

@@ -99,6 +99,26 @@ bool QmlMiniPlayer::seekable()
     return mPlayer->isSeekable();
 }
 
+void QmlMiniPlayer::mute()
+{
+    mPlayer->mute();
+}
+
+void QmlMiniPlayer::unMute()
+{
+    mPlayer->unMute();
+}
+
+bool QmlMiniPlayer::getMute()
+{
+    return mPlayer->getMute();
+}
+
+void QmlMiniPlayer::toggleMute()
+{
+    mPlayer->toggleMute();
+}
+
 float QmlMiniPlayer::volume()
 {
     return mPlayer->getVolume();

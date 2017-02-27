@@ -184,8 +184,9 @@ Window {
         }
 
         Slider {
-            id:ctlVolume
+            id: ctlVolume
             width: 80
+            value: 1
             anchors.rightMargin: 10
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
@@ -193,6 +194,8 @@ Window {
             maximumValue: 1
             onPressedChanged: {
                 if(!ctlVolume.pressed) {
+                    if(ctlPlayer.getMute())
+                        ctlPlayer.unMute();
                     ctlPlayer.volume = ctlVolume.value;
                 }
             }
@@ -285,6 +288,36 @@ Window {
         anchors.left: btnPause.right
         onClicked: {
             ctlPlayer.togglePause();
+        }
+    }
+
+    Button {
+        id: btnMute
+        text: "Mute"
+        anchors.top: parent.top
+        anchors.left: btnTogglePause.right
+        onClicked: {
+            ctlPlayer.mute();
+        }
+    }
+
+    Button {
+        id: btnUnMute
+        text: "UnMute"
+        anchors.top: parent.top
+        anchors.left: btnMute.right
+        onClicked: {
+            ctlPlayer.unMute();
+        }
+    }
+
+    Button {
+        id: btnToggleMute
+        text: "ToggleMute"
+        anchors.top: parent.top
+        anchors.left: btnUnMute.right
+        onClicked: {
+            ctlPlayer.toggleMute();
         }
     }
 }

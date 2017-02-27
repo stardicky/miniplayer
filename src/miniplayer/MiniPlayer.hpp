@@ -109,11 +109,6 @@ public:
         submitCommand(cmd);
     }
 
-    void mute()
-    {
-        //todo
-    }
-
     void stop()
     {
         qDebug() << __FUNCTION__;
@@ -150,6 +145,18 @@ public:
         qDebug() << __FUNCTION__ << pos;
         mSeekToPosition = pos;
         mPosition = pos;
+    }
+
+    bool getMute() { return mAudioOutput->getMute(); }
+    void mute() { mAudioOutput->setMute(true); }
+    void unMute() { mAudioOutput->setMute(false); }
+
+    void toggleMute()
+    {
+        if(mAudioOutput->getMute())
+            mAudioOutput->setMute(false);
+        else
+            mAudioOutput->setMute(true);
     }
 
     double getPosition() { return mPosition; }

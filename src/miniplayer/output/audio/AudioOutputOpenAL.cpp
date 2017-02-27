@@ -24,7 +24,8 @@ AudioOutputOpenAL::AudioOutputOpenAL() :
     mSwrFormat(AV_SAMPLE_FMT_NONE),
     mSwrNbSamples(0),
     mALBufferState(0),
-    mVolume(1.0f)
+    mVolume(1.0f),
+    mMute(false)
 {
     qDebug() << __FUNCTION__;
 }
@@ -97,8 +98,7 @@ bool AudioOutputOpenAL::open(AVFrame *)
     alSource3f(mALSource, AL_POSITION, 0.0, 0.0, 0.0);
     alSource3f(mALSource, AL_VELOCITY, 0.0, 0.0, 0.0);
     alListener3f(AL_POSITION, 0.0, 0.0, 0.0);
-
-    alListenerf(AL_GAIN, mVolume);
+    alListenerf(AL_GAIN, mMute ? 0 : mVolume);
     success = true;
     return true;
 }
@@ -138,11 +138,11 @@ bool AudioOutputOpenAL::setVolume(float value)
         value = 1;
     qDebug() << __FUNCTION__ << value;
 
-    if(!mContext)
-    {
-        mVolume = value;
+    if(mVolume == value)
         return true;
-    }
+    mVolume = value;
+    if(!mContext || mMute)
+        return true;
 
     SCOPE_LOCK_CONTEXT();
     alListenerf(AL_GAIN, value);
@@ -157,6 +157,24 @@ float AudioOutputOpenAL::getVolume()
     ALfloat val = 1.0;
     alGetListenerf(AL_GAIN, &val);
     return val;
+}
+
+bool AudioOutputOpenAL::setMute(bool value)
+{
+    qDebug() << __FUNCTION__ << value;
+    if(mMute == value)
+        return true;
+    mMute = value;
+    if(!mContext)
+        return true;
+    SCOPE_LOCK_CONTEXT();
+    alListenerf(AL_GAIN, mMute ? 0 : mVolume);
+    return true;
+}
+
+bool AudioOutputOpenAL::getMute()
+{
+    return mMute;
 }
 
 bool AudioOutputOpenAL::close()

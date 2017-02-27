@@ -21,6 +21,8 @@ public:
     virtual bool render(AVFrame * avFrame) = 0;
     virtual bool setVolume(float value) = 0;
     virtual float getVolume() = 0;
+    virtual bool setMute(bool value) = 0;
+    virtual bool getMute() = 0;
 };
 
 #endif // AUDIOOUTPUT_HPP
