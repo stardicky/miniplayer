@@ -1,4 +1,6 @@
 #include "AudioOutputOpenAL.hpp"
+#include <memory>
+#include <thread>
 #include <QDebug>
 
 std::mutex AudioOutputOpenAL::globalMutex;
@@ -21,7 +23,8 @@ AudioOutputOpenAL::AudioOutputOpenAL() :
     mSwrSampleRate(0),
     mSwrFormat(AV_SAMPLE_FMT_NONE),
     mSwrNbSamples(0),
-    mALBufferState(0)
+    mALBufferState(0),
+    mVolume(1.0f)
 {
     qDebug() << __FUNCTION__;
 }
@@ -95,6 +98,7 @@ bool AudioOutputOpenAL::open(AVFrame *)
     alSource3f(mALSource, AL_VELOCITY, 0.0, 0.0, 0.0);
     alListener3f(AL_POSITION, 0.0, 0.0, 0.0);
 
+    setVolume(mVolume);
     success = true;
     return true;
 }
@@ -124,6 +128,35 @@ bool AudioOutputOpenAL::stop()
     mALBufferState = 0;
 
     return true;
+}
+
+bool AudioOutputOpenAL::setVolume(float value)
+{
+//    if(value < 0)
+//        value = 0;
+//    else if(value > 1)
+//        value = 1;
+//    qDebug() << __FUNCTION__ << value;
+
+//    if(!mContext)
+//    {
+//        mVolume = value;
+//        return true;
+//    }
+
+//    SCOPE_LOCK_CONTEXT();
+//    alListenerf(AL_GAIN, value);
+    return true;
+}
+
+float AudioOutputOpenAL::getVolume()
+{
+    if(!mContext)
+        return mVolume;
+    //SCOPE_LOCK_CONTEXT();
+    ALfloat val = 1.0;
+    //alGetListenerf(AL_GAIN, &val);
+    return val;
 }
 
 bool AudioOutputOpenAL::close()

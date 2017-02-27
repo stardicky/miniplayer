@@ -19,6 +19,8 @@ public:
     virtual bool stop() = 0;
     virtual bool close() = 0;
     virtual bool render(AVFrame * avFrame) = 0;
+    virtual bool setVolume(float value) = 0;
+    virtual float getVolume() = 0;
 };
 
 #endif // AUDIOOUTPUT_HPP

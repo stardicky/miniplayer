@@ -146,17 +146,6 @@ Window {
             text: "00:00:00"
         }
 
-        Text {
-            id: txtDuration
-            anchors.right: parent.right
-            height: parent.height
-            width: 60
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignHCenter
-            color: "#ffffff"
-            text: "00:00:00"
-        }
-
         Slider {
             id:ctlProgress
             anchors.left: txtPosition.right
@@ -167,6 +156,44 @@ Window {
             onPressedChanged: {
                 if(!ctlProgress.pressed) {
                     ctlPlayer.position = ctlProgress.value;
+                }
+            }
+        }
+
+        Text {
+            id: txtDuration
+            anchors.right: txtVolume.left
+            height: parent.height
+            width: 60
+            verticalAlignment: Text.AlignVCenter
+            horizontalAlignment: Text.AlignHCenter
+            color: "#ffffff"
+            text: "00:00:00"
+        }
+
+        Text {
+            id: txtVolume
+            anchors.right: ctlVolume.left
+            anchors.rightMargin: 10
+            height: parent.height
+            width: 50
+            verticalAlignment: Text.AlignVCenter
+            horizontalAlignment: Text.AlignRight
+            color: "#ffffff"
+            text: "Volume"
+        }
+
+        Slider {
+            id:ctlVolume
+            width: 80
+            anchors.rightMargin: 10
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            minimumValue: 0
+            maximumValue: 1
+            onPressedChanged: {
+                if(!ctlVolume.pressed) {
+                    //ctlPlayer.position = ctlVolume.value;
                 }
             }
         }

@@ -587,7 +587,7 @@ void MiniPlayer::videoRenderThread()
                 else
                 {
                     mSynced = true;
-                    qDebug() << __FUNCTION__ << "synced";
+                    qDebug() << __FUNCTION__ << "synced" << videoClock() << audioClock();
                     break;
                 }
             }
@@ -685,7 +685,7 @@ void MiniPlayer::audioRenderThread()
                 else
                 {
                     mSynced = true;
-                    qDebug() << __FUNCTION__ << "synced";
+                    qDebug() << __FUNCTION__ << "synced" << videoClock() << audioClock();
                     break;
                 }
             }
