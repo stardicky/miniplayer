@@ -104,6 +104,16 @@ bool QmlMiniPlayer::seekable()
     return mPlayer->isSeekable();
 }
 
+long QmlMiniPlayer::downloadSpeed()
+{
+    return static_cast<long>(mPlayer->getDownloadSpeed());
+}
+
+int QmlMiniPlayer::fps()
+{
+    return mPlayer->getFps();
+}
+
 void QmlMiniPlayer::mute()
 {
     mPlayer->mute();

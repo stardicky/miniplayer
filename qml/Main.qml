@@ -81,8 +81,16 @@ Window {
         visible: ctlPlayer.buffering
         BusyIndicator {
             anchors.fill: parent
-            anchors.margins: 20
+            anchors.margins: 30
             running: true
+        }
+        Text {
+            id: txtDownloadSpeed
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 15
+            horizontalAlignment: Text.horizontalAlignment
+            color: "#ffffff"
         }
     }
 
@@ -129,24 +137,28 @@ Window {
         repeat: true
         onTriggered: {
             ctlPlayer.dump(dumpInfo);
-            txtStatus.text = "VPQ:" + dumpInfo.videoPacketQueueSize +
-                        " APQ:" + dumpInfo.audioPacketQueueSize +
-                        " VFQ:" + dumpInfo.videoFrameQueueSize +
-                        " AFQ:" + dumpInfo.audioFrameQueueSize +
-                        " V:" + dumpInfo.videoClock.toFixed(3) +
-                        " A:" + dumpInfo.audioClock.toFixed(3) +
-                        " A-V:" + (dumpInfo.audioClock - dumpInfo.videoClock).toFixed(3) +
-                        " VBD:" + dumpInfo.videoBufferDuration.toFixed(3) +
-                        " ABD:" + dumpInfo.audioBufferDuration.toFixed(3) +
-                        " BS:" + dumpInfo.packetBufferSize + "/" + dumpInfo.maxPacketBufferSize;
+            var downloadSpeed = (ctlPlayer.downloadSpeed / 1024).toFixed(1);
+            txtDownloadSpeed.text = downloadSpeed + "KiB/s";
+            txtStatus.text = "FPS:  " + ctlPlayer.fps + "\r\n" +
+                        "D:    " + downloadSpeed + "KiB/s" + "\r\n" +
+                        "V:    " + dumpInfo.videoClock.toFixed(3) + "\r\n" +
+                        "A:    " + dumpInfo.audioClock.toFixed(3) + "\r\n" +
+                        "A-V:  " + (dumpInfo.audioClock - dumpInfo.videoClock).toFixed(3) + "\r\n" +
+                        "VPQ:  " + dumpInfo.videoPacketQueueSize + "\r\n" +
+                        "APQ:  " + dumpInfo.audioPacketQueueSize + "\r\n" +
+                        "VFQ:  " + dumpInfo.videoFrameQueueSize + "\r\n" +
+                        "AFQ:  " + dumpInfo.audioFrameQueueSize + "\r\n" +
+                        "VBD:  " + dumpInfo.videoBufferDuration.toFixed(3) + "\r\n" +
+                        "ABD:  " + dumpInfo.audioBufferDuration.toFixed(3) + "\r\n" +
+                        "BS:   " + dumpInfo.packetBufferSize + "/" + dumpInfo.maxPacketBufferSize;
         }
     }
 
 
     Rectangle {
-        id:progressPannel
+        id: progressPannel
         anchors.left: parent.left
-        anchors.bottom: infoPanel.top
+        anchors.bottom: parent.bottom
         anchors.right: parent.right
         color: "#80000000"
         height: 30
@@ -219,33 +231,32 @@ Window {
     }
 
     Rectangle {
-        id:infoPanel
-        anchors.left: parent.left
-        anchors.bottom: parent.bottom
+        id: infoPanel
         anchors.right: parent.right
+        anchors.bottom: progressPannel.top
+        anchors.bottomMargin: 5
+        anchors.rightMargin: 5
         color: "#80000000"
-        height: txtStatus.height
+        height: 180
+        width: 140
 
         Text {
             id: txtState
             anchors.left: parent.left
-            anchors.bottom: parent.bottom
-            width: 60
+            anchors.right: parent.right
             padding: 5
             color: "#ffffff"
-            verticalAlignment: Text.AlignVCenter
             wrapMode: Text.NoWrap
         }
 
         Text {
             id: txtStatus
-            anchors.left: txtState.right
-            anchors.bottom: parent.bottom
+            anchors.left: parent.left
             anchors.right: parent.right
+            anchors.top: txtState.bottom
+            anchors.bottom: parent.bottom
             padding: 5
             color: "#ffffff"
-            verticalAlignment: Text.AlignVCenter
-            wrapMode: Text.NoWrap
         }
     }
 
@@ -257,7 +268,7 @@ Window {
         anchors.left: parent.left
         anchors.top: parent.tops
         onClicked: {
-            //ctlPlayer.open("http://localhost:9001/1.ts");
+            //ctlPlayer.open("http://192.168.3.52:9001/1.ts");
             //ctlPlayer.open("F:\\TestVideos\\1.ts");
             ctlPlayer.open("http://192.168.3.52:9001/EP01.2015.HD720P.X264.AAC.Mandarin.CHS.mp4");
             //ctlPlayer.open("https://arch.p2sp.net/live");

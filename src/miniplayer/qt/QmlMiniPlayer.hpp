@@ -55,6 +55,8 @@ class QmlMiniPlayer : public QObject, public QQmlParserStatus, private MiniPlaye
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(double duration READ duration)
     Q_PROPERTY(bool seekable READ seekable)
+    Q_PROPERTY(long downloadSpeed READ downloadSpeed)
+    Q_PROPERTY(int fps READ fps)
     Q_PROPERTY(float volume READ volume WRITE setVolume)
     Q_PROPERTY(bool buffering READ buffering NOTIFY bufferingChanged)
 
@@ -96,6 +98,8 @@ public:
     float volume();
     void setVolume(float val);
     bool buffering();
+    long downloadSpeed();
+    int fps();
 
 private: //MiniPlayer::Callback
     void onVideoRender(AVFrame * frame);

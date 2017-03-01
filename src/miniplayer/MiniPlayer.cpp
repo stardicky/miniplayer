@@ -26,6 +26,9 @@ MiniPlayer::MiniPlayer(Callback * callback, AudioOutput * audioOutput) :
     mPosition(-1),
     mDuration(-1),
     mSeekToPosition(-1),
+    mTotalBytes(0),
+    mDownloadSpeed(0),
+    mFps(0),
     mState(State::Stopped)
 {
     qDebug() << __FUNCTION__;
@@ -147,7 +150,9 @@ void MiniPlayer::stopThread()
     mSeekable = false;
     mSeekToPosition = -1;
     mSynced = false;
-
+    mTotalBytes = 0;
+    mDownloadSpeed = 0;
+    mFps = 0;
 
     qDebug() << __FUNCTION__ << "end";
 }
@@ -190,6 +195,9 @@ void MiniPlayer::openThread()
     mPosition = mDuration = -1;
     mSeekable = false;
     mSeekToPosition = -1;
+    mTotalBytes = 0;
+    mDownloadSpeed = 0;
+    mFps = 0;
     mSynced = false;
     setBuffering(true);
     //-----------------------------------------------
@@ -306,6 +314,7 @@ void MiniPlayer::readPacketThread()
         if(mSeekable && mSeekToPosition >= 0)
         {
             qDebug() << __FUNCTION__ << "seek start";
+            setBuffering(true);
             mVideoPacketQueue.clear();
             mAudioPacketQueue.clear();
             mVideoFrameQueue.clear();
@@ -316,15 +325,6 @@ void MiniPlayer::readPacketThread()
             mSynced = false;
             eof = false;
             clearClock();
-
-//            while(!mAbort)
-//            {
-//                if(mVideoPacketQueue.size() == 0 && mAudioPacketQueue.size() == 0 &&
-//                   mVideoFrameQueue.size() == 0 && mAudioFrameQueue.size() == 0)
-//                    break;
-//                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-//                //qDebug() << "2222222222222222";
-//            }
 
             auto seekToPosition = mSeekToPosition;
             mPosition = seekToPosition;
@@ -387,13 +387,15 @@ void MiniPlayer::readPacketThread()
             continue;
         }
 
+        mTotalBytes += packet.size;
+
         if (packet.stream_index == mVideoStream->index)
         {
             av_dup_packet(&packet);
             mVideoPacketQueue.append(packet);
-
+            //----------------------------------------------------------------------------
             auto bufferedDuration = mVideoPacketQueue.duration();
-            if(bufferedDuration >= mMaxBufferDuration)
+            if(bufferedDuration >= mMaxBufferDuration && mVideoFrameQueue.size() > 0)
                 setBuffering(false);
         }
         else if (packet.stream_index == mAudioStream->index)
@@ -555,8 +557,27 @@ void MiniPlayer::videoRenderThread()
 {
     qDebug() << __FUNCTION__ << "start";
 
+    int64_t baseTime = av_gettime_relative();
+    int64_t timeCount = 0;
+    int64_t totalFrame = 0;
+
     for(; !mAbort; )
     {
+        int64_t time = av_gettime_relative();
+        if((time - baseTime) / 1000000.f >= timeCount)
+        {
+            timeCount ++;
+            //---------------------------------------------------------------------
+            if(mDownloadSpeed == 0)
+                mDownloadSpeed = static_cast<int64_t>(mTotalBytes);
+            else
+                mDownloadSpeed = ((mDownloadSpeed * 5) + (mTotalBytes * 3)) / 8.0f;
+            mTotalBytes = 0;
+            //---------------------------------------------------------------------
+            mFps = totalFrame;
+            totalFrame = 0;
+        }
+
         if(mBuffering || mState == State::Paused || mSeekToPosition >= 0)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -614,6 +635,7 @@ void MiniPlayer::videoRenderThread()
             }
         }
 
+        totalFrame ++;
         mCallback->onVideoRender(renderFrame);
 
         auto vClock = videoClock();

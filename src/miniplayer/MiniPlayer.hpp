@@ -88,6 +88,9 @@ private:
     std::atomic_bool mSeekable;
     std::atomic_bool mSynced;
     std::atomic_bool mBuffering;
+    std::atomic_int64_t mTotalBytes;
+    std::atomic_int64_t mDownloadSpeed;
+    std::atomic_int mFps;
     std::shared_ptr<Command> mPendingCommand;
     std::mutex mCommandMutex;
     Callback * mCallback;
@@ -171,6 +174,8 @@ public:
     void setVolume(float value) { mAudioOutput->setVolume(value); }
     float getVolume() const { return mAudioOutput->getVolume(); }
     bool isBuffering() const { return mBuffering; }
+    int64_t getDownloadSpeed() const { return mDownloadSpeed; }
+    int getFps() const { return mFps; }
 
     void dump(DumpInfo & info) const
     {
