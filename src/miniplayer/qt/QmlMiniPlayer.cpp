@@ -79,6 +79,11 @@ void QmlMiniPlayer::onStateChanged(int state)
     emit stateChanged((State)state);
 }
 
+void QmlMiniPlayer::onBufferingChanged(bool buffering)
+{
+    emit bufferingChanged(buffering);
+}
+
 double QmlMiniPlayer::position()
 {
     return mPlayer->getPosition();
@@ -129,6 +134,11 @@ void QmlMiniPlayer::setVolume(float val)
     mPlayer->setVolume(val);
 }
 
+bool QmlMiniPlayer::buffering()
+{
+    return mPlayer->isBuffering();
+}
+
 QmlMiniPlayer::State QmlMiniPlayer::state()
 {
     return static_cast<State>(mPlayer->getState());
@@ -136,7 +146,7 @@ QmlMiniPlayer::State QmlMiniPlayer::state()
 
 void QmlMiniPlayer::dump(QmlDumpInfo * info)
 {
-    mPlayer->dump(&info->data);
+    mPlayer->dump(info->data);
 }
 
 void QmlMiniPlayer::open(const QString & mediaPath)

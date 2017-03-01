@@ -72,6 +72,20 @@ Window {
         anchors.fill: parent
     }
 
+    Rectangle {
+        radius: 10
+        color: "#60000000"
+        anchors.centerIn: parent;
+        width: 100
+        height: 100
+        visible: ctlPlayer.buffering
+        BusyIndicator {
+            anchors.fill: parent
+            anchors.margins: 20
+            running: true
+        }
+    }
+
 //    VideoSurface {
 //        source: ctlPlayer
 //        anchors.left: parent.left
@@ -122,6 +136,8 @@ Window {
                         " V:" + dumpInfo.videoClock.toFixed(3) +
                         " A:" + dumpInfo.audioClock.toFixed(3) +
                         " A-V:" + (dumpInfo.audioClock - dumpInfo.videoClock).toFixed(3) +
+                        " VBD:" + dumpInfo.videoBufferDuration.toFixed(3) +
+                        " ABD:" + dumpInfo.audioBufferDuration.toFixed(3) +
                         " BS:" + dumpInfo.packetBufferSize + "/" + dumpInfo.maxPacketBufferSize;
         }
     }
@@ -241,9 +257,9 @@ Window {
         anchors.left: parent.left
         anchors.top: parent.tops
         onClicked: {
-            ctlPlayer.open("http://localhost:9001/1.ts");
+            //ctlPlayer.open("http://localhost:9001/1.ts");
             //ctlPlayer.open("F:\\TestVideos\\1.ts");
-            //ctlPlayer.open("http://localhost:9001/EP01.2015.HD720P.X264.AAC.Mandarin.CHS.mp4");
+            ctlPlayer.open("http://192.168.3.52:9001/EP01.2015.HD720P.X264.AAC.Mandarin.CHS.mp4");
             //ctlPlayer.open("https://arch.p2sp.net/live");
             //ctlPlayer.open("https://arch.p2sp.net/ihdvod/EP01.2015.HD720P.X264.AAC.Mandarin.CHS.mp4");
             //ctlPlayer.open("https://arch.p2sp.net/tmp/new.ts");

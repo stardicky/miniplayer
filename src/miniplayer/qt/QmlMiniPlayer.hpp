@@ -24,6 +24,8 @@ class QmlDumpInfo : public QObject
     Q_PROPERTY(int audioPacketQueueSize READ audioPacketQueueSize CONSTANT)
     Q_PROPERTY(int videoFrameQueueSize READ videoFrameQueueSize CONSTANT)
     Q_PROPERTY(int audioFrameQueueSize READ audioFrameQueueSize CONSTANT)
+    Q_PROPERTY(double videoBufferDuration READ videoBufferDuration CONSTANT)
+    Q_PROPERTY(double audioBufferDuration READ audioBufferDuration CONSTANT)
     Q_PROPERTY(double videoClock READ videoClock CONSTANT)
     Q_PROPERTY(double audioClock READ audioClock CONSTANT)
 public:    
@@ -37,6 +39,8 @@ public:
     int audioPacketQueueSize() const { return (int)data.audioPacketQueueSize; }
     int videoFrameQueueSize() const { return (int)data.videoFrameQueueSize; }
     int audioFrameQueueSize() const { return (int)data.audioFrameQueueSize; }
+    double videoBufferDuration() const { return data.videoBufferDuration; }
+    double audioBufferDuration() const { return data.audioBufferDuration; }
     double videoClock() const { return data.videoClock; }
     double audioClock() const { return data.audioClock; }
 public:
@@ -52,6 +56,7 @@ class QmlMiniPlayer : public QObject, public QQmlParserStatus, private MiniPlaye
     Q_PROPERTY(double duration READ duration)
     Q_PROPERTY(bool seekable READ seekable)
     Q_PROPERTY(float volume READ volume WRITE setVolume)
+    Q_PROPERTY(bool buffering READ buffering NOTIFY bufferingChanged)
 
 private:
     AudioOutputOpenAL mAudioOutput;
@@ -90,12 +95,14 @@ public:
     bool seekable();
     float volume();
     void setVolume(float val);
+    bool buffering();
 
 private: //MiniPlayer::Callback
     void onVideoRender(AVFrame * frame);
     void onPositionChanged(double pos);
     void onEndReached();
     void onStateChanged(int state);
+    void onBufferingChanged(bool buffering);
 
 public slots:
     void dump(QmlDumpInfo * info);
@@ -116,6 +123,7 @@ signals:
     void positionChanged(double pos);
     void stateChanged(State state);
     void endReached();
+    void bufferingChanged(bool buffering);
 };
 
 #endif // QMLMINIPLAYER_HPP

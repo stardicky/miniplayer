@@ -11,6 +11,7 @@ MiniPlayer::MiniPlayer(Callback * callback, AudioOutput * audioOutput) :
     mAbort(false),
     mAudioInited(false),
     mSeekable(false),
+    mBuffering(false),
     mVideoStream(nullptr),
     mAudioStream(nullptr),
     mFormatContext(nullptr),
@@ -20,6 +21,7 @@ MiniPlayer::MiniPlayer(Callback * callback, AudioOutput * audioOutput) :
     mVideoClockDrift(-1),
     mClockBase(-1),
     mMaxPacketBufferSize(5 * 1024 * 1024),
+    mMaxBufferDuration(2),
     mMaxFrameQueueSize(40),
     mPosition(-1),
     mDuration(-1),
@@ -115,6 +117,7 @@ void MiniPlayer::stopThread()
     std::unique_ptr<int, std::function<void (int *)>> scope((int *)1, [&](void*)
     {
         changeState(-1, State::Stopped);
+        setBuffering(false);
         onCommandFinished();
     });
 
@@ -144,6 +147,7 @@ void MiniPlayer::stopThread()
     mSeekable = false;
     mSeekToPosition = -1;
     mSynced = false;
+
 
     qDebug() << __FUNCTION__ << "end";
 }
@@ -187,6 +191,7 @@ void MiniPlayer::openThread()
     mSeekable = false;
     mSeekToPosition = -1;
     mSynced = false;
+    setBuffering(true);
     //-----------------------------------------------
     bool success = false;
     std::unique_ptr<int, std::function<void (int *)>> scope((int *)1, [&](void*)
@@ -195,6 +200,7 @@ void MiniPlayer::openThread()
         {
             qWarning() << __FUNCTION__ << "failure";
             changeState(-1, State::Stopped);
+            setBuffering(false);
             mAbort = true;
         }
         onCommandFinished();
@@ -237,11 +243,13 @@ void MiniPlayer::openThread()
             mVideoStream = mFormatContext->streams[i];
             mVideoWidth = mVideoStream->codec->width;
             mVideoHeight = mVideoStream->codec->height;
+            mVideoPacketQueue.setTimeBase(av_q2d(mVideoStream->time_base));
             qDebug() << __FUNCTION__ << "video size width:" << mVideoWidth << ", height:" << mVideoHeight;
         }
         else if(codecType == AVMediaType::AVMEDIA_TYPE_AUDIO)
         {
             mAudioStream = mFormatContext->streams[i];
+            mAudioPacketQueue.setTimeBase(av_q2d(mAudioStream->time_base));;
         }
     }
 
@@ -339,6 +347,7 @@ void MiniPlayer::readPacketThread()
 
         if(packetBufferSize > mMaxPacketBufferSize || eof)
         {
+            setBuffering(false);
             if(eof)
             {
                 if(mVideoPacketQueue.size() == 0 && mAudioPacketQueue.size() == 0 &&
@@ -353,8 +362,10 @@ void MiniPlayer::readPacketThread()
             continue;
         }
 
-        av_init_packet(&packet);
+        if(mVideoPacketQueue.size() == 0 || mVideoFrameQueue.size() == 0)
+            setBuffering(true);
 
+        av_init_packet(&packet);
         int ret = av_read_frame(mFormatContext, &packet);
         if (ret < 0)
         {
@@ -380,6 +391,10 @@ void MiniPlayer::readPacketThread()
         {
             av_dup_packet(&packet);
             mVideoPacketQueue.append(packet);
+
+            auto bufferedDuration = mVideoPacketQueue.duration();
+            if(bufferedDuration >= mMaxBufferDuration)
+                setBuffering(false);
         }
         else if (packet.stream_index == mAudioStream->index)
         {
@@ -542,7 +557,7 @@ void MiniPlayer::videoRenderThread()
 
     for(; !mAbort; )
     {
-        if(mState == State::Paused || mSeekToPosition >= 0)
+        if(mBuffering || mState == State::Paused || mSeekToPosition >= 0)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
@@ -636,7 +651,7 @@ void MiniPlayer::audioRenderThread()
         else if(paused && mState == State::Playing)
             paused = false;
 
-        if(paused || mSeekToPosition >= 0)
+        if(paused || mSeekToPosition >= 0 || mBuffering)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
@@ -695,8 +710,7 @@ void MiniPlayer::audioRenderThread()
         }
 
         bool worked = mAudioOutput->render(renderFrame);
-        auto targetTime = systemClock() + (av_q2d(mAudioStream->time_base) * renderFrame->pkt_duration);
-        auto delay = targetTime - systemClock();
+        auto delay = av_q2d(mAudioStream->time_base) * renderFrame->pkt_duration;
         if (delay > 0)
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int64_t>(delay * 1000 - (worked ? 10 : 0))));
     }

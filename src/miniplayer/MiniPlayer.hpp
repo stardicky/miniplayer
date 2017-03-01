@@ -35,6 +35,8 @@ public:
         size_t audioPacketQueueSize;
         size_t videoFrameQueueSize;
         size_t audioFrameQueueSize;
+        double videoBufferDuration;
+        double audioBufferDuration;
         double videoClock;
         double audioClock;
     } DumpInfo;
@@ -54,6 +56,7 @@ public:
         virtual void onPositionChanged(double pos) = 0;
         virtual void onEndReached() = 0;
         virtual void onStateChanged(int state) = 0;
+        virtual void onBufferingChanged(bool buffering) = 0;
     };
 
 private:
@@ -73,6 +76,7 @@ private:
     AVFrameQueue mVideoFrameQueue;
     AVFrameQueue mAudioFrameQueue;
     int64_t mMaxPacketBufferSize;
+    double mMaxBufferDuration;
     size_t mMaxFrameQueueSize;
     std::atomic_int mVideoWidth;
     std::atomic_int mVideoHeight;
@@ -83,6 +87,7 @@ private:
     std::atomic_bool mAudioInited;
     std::atomic_bool mSeekable;
     std::atomic_bool mSynced;
+    std::atomic_bool mBuffering;
     std::shared_ptr<Command> mPendingCommand;
     std::mutex mCommandMutex;
     Callback * mCallback;
@@ -159,37 +164,30 @@ public:
             mAudioOutput->setMute(true);
     }
 
-    double getPosition() { return mPosition; }
-    double getDuration() { return mDuration; }
-    bool isSeekable() { return mSeekable; }
-    int getState() { return mState; }
+    double getPosition() const { return mPosition; }
+    double getDuration() const { return mDuration; }
+    bool isSeekable() const { return mSeekable; }
+    int getState() const { return mState; }
     void setVolume(float value) { mAudioOutput->setVolume(value); }
-    float getVolume() { return mAudioOutput->getVolume(); }
+    float getVolume() const { return mAudioOutput->getVolume(); }
+    bool isBuffering() const { return mBuffering; }
 
-    void dump(DumpInfo * info)
+    void dump(DumpInfo & info) const
     {
-        info->videoPacketQueueSize = mVideoPacketQueue.size();
-        info->videoFrameQueueSize = mVideoFrameQueue.size();
-        info->audioPacketQueueSize = mAudioPacketQueue.size();
-        info->audioFrameQueueSize = mAudioFrameQueue.size();
-        info->packetBufferSize = mVideoPacketQueue.dataSize() + mAudioPacketQueue.dataSize();
-        info->maxPacketBufferSize = mMaxPacketBufferSize;
-        info->maxFrameQueueSize = mMaxFrameQueueSize;
-        info->videoClock = videoClock();
-        info->audioClock = audioClock();
+        info.videoPacketQueueSize = mVideoPacketQueue.size();
+        info.videoFrameQueueSize = mVideoFrameQueue.size();
+        info.audioPacketQueueSize = mAudioPacketQueue.size();
+        info.audioFrameQueueSize = mAudioFrameQueue.size();
+        info.packetBufferSize = mVideoPacketQueue.dataSize() + mAudioPacketQueue.dataSize();
+        info.maxPacketBufferSize = mMaxPacketBufferSize;
+        info.maxFrameQueueSize = mMaxFrameQueueSize;
+        info.videoBufferDuration = mVideoPacketQueue.duration();
+        info.audioBufferDuration = mAudioPacketQueue.duration();
+        info.videoClock = videoClock();
+        info.audioClock = audioClock();
     }
 
 private:
-    void printDumpInfo()
-    {
-        qDebug() << __FUNCTION__
-                 << "VPQ:" << mVideoPacketQueue.size()
-                 << "APQ:" << mAudioPacketQueue.size()
-                 << "VFQ:" << mVideoFrameQueue.size()
-                 << "AFQ:" << mAudioFrameQueue.size()
-                 << "BS:" << (mVideoPacketQueue.dataSize() + mAudioPacketQueue.dataSize()) << "/" << mMaxPacketBufferSize;
-    }
-
     void openThread();
     void stopThread();
     void readPacketThread();
@@ -215,6 +213,15 @@ private:
         mState = to;
         qDebug() << __FUNCTION__ << oldState << "->" << mState;
         mCallback->onStateChanged(mState);
+    }
+
+    void setBuffering(bool val)
+    {
+        if(mBuffering == val)
+            return;
+        mBuffering = val;
+        qDebug() << __FUNCTION__ << mBuffering;
+        mCallback->onBufferingChanged(mBuffering);
     }
 
     void submitCommand(std::shared_ptr<Command> cmd)

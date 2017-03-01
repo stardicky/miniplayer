@@ -66,7 +66,10 @@ private:
 class AVPacketQueue
 {
 public:
-    AVPacketQueue() : mDataSize(0)
+    AVPacketQueue() :
+        mDataSize(0),
+        mTimeBase(0),
+        mDuration(0)
     {
         av_init_packet(&mFlushPacket);
         mFlushPacket.data = (uint8_t *)&mFlushPacket;
@@ -84,6 +87,7 @@ public:
         std::lock_guard<std::mutex> l(mMutex);
         mDatas.push_back(pkt);
         mDataSize += pkt.size;
+        mDuration += static_cast<int64_t>(pkt.duration * mTimeBase * 1000);
     }
 
     void appendFlushPacket()
@@ -101,6 +105,7 @@ public:
         pkt = mDatas.front();
         mDatas.pop_front();
         mDataSize -= pkt.size;
+        mDuration -= static_cast<int64_t>(pkt.duration * mTimeBase * 1000);
         return true;
     }
 
@@ -110,6 +115,7 @@ public:
         if(mDatas.size() > 0)
         {
             mDataSize = 0;
+            mDuration = 0;
             for (auto& pkt : mDatas)
             {
                 if(!isFlushPacket(pkt))
@@ -130,9 +136,19 @@ public:
         return mDataSize;
     }
 
+    double duration() const
+    {
+        return mDuration / 1000.0f;
+    }
+
     bool isFlushPacket(AVPacket & pkt) const
     {
         return pkt.data == (uint8_t *)&mFlushPacket;
+    }
+
+    void setTimeBase(double timeBase)
+    {
+        mTimeBase = timeBase;
     }
 
 private:
@@ -140,6 +156,8 @@ private:
     std::list<AVPacket> mDatas;
     AVPacket mFlushPacket;
     int64_t mDataSize;
+    double mTimeBase;
+    int64_t mDuration;
 };
 
 }
