@@ -24,8 +24,10 @@ class QmlDumpInfo : public QObject
     Q_PROPERTY(int audioPacketQueueSize READ audioPacketQueueSize CONSTANT)
     Q_PROPERTY(int videoFrameQueueSize READ videoFrameQueueSize CONSTANT)
     Q_PROPERTY(int audioFrameQueueSize READ audioFrameQueueSize CONSTANT)
-    Q_PROPERTY(double videoBufferDuration READ videoBufferDuration CONSTANT)
-    Q_PROPERTY(double audioBufferDuration READ audioBufferDuration CONSTANT)
+    Q_PROPERTY(double videoPacketQueueDuration READ videoPacketQueueDuration CONSTANT)
+    Q_PROPERTY(double audioPacketQueueDuration READ audioPacketQueueDuration CONSTANT)
+    Q_PROPERTY(double videoFrameQueueDuration READ videoFrameQueueDuration CONSTANT)
+    Q_PROPERTY(double audioFrameQueueDuration READ audioFrameQueueDuration CONSTANT)
     Q_PROPERTY(double videoClock READ videoClock CONSTANT)
     Q_PROPERTY(double audioClock READ audioClock CONSTANT)
 public:    
@@ -39,8 +41,10 @@ public:
     int audioPacketQueueSize() const { return (int)data.audioPacketQueueSize; }
     int videoFrameQueueSize() const { return (int)data.videoFrameQueueSize; }
     int audioFrameQueueSize() const { return (int)data.audioFrameQueueSize; }
-    double videoBufferDuration() const { return data.videoBufferDuration; }
-    double audioBufferDuration() const { return data.audioBufferDuration; }
+    double videoPacketQueueDuration() const { return data.videoPacketQueueDuration; }
+    double audioPacketQueueDuration() const { return data.audioPacketQueueDuration; }
+    double videoFrameQueueDuration() const { return data.videoFrameQueueDuration; }
+    double audioFrameQueueDuration() const { return data.audioFrameQueueDuration; }
     double videoClock() const { return data.videoClock; }
     double audioClock() const { return data.audioClock; }
 public:
@@ -59,6 +63,7 @@ class QmlMiniPlayer : public QObject, public QQmlParserStatus, private MiniPlaye
     Q_PROPERTY(int fps READ fps)
     Q_PROPERTY(float volume READ volume WRITE setVolume)
     Q_PROPERTY(bool buffering READ buffering NOTIFY bufferingChanged)
+    Q_PROPERTY(bool endReached READ endReached)
 
 private:
     AudioOutputOpenAL mAudioOutput;
@@ -99,12 +104,12 @@ public:
     void setVolume(float val);
     bool buffering();
     long downloadSpeed();
+    bool endReached();
     int fps();
 
 private: //MiniPlayer::Callback
     void onVideoRender(AVFrame * frame);
     void onPositionChanged(double pos);
-    void onEndReached();
     void onStateChanged(int state);
     void onBufferingChanged(bool buffering);
 
@@ -126,7 +131,6 @@ private slots:
 signals:
     void positionChanged(double pos);
     void stateChanged(State state);
-    void endReached();
     void bufferingChanged(bool buffering);
 };
 

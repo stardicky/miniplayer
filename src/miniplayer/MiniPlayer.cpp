@@ -21,7 +21,7 @@ MiniPlayer::MiniPlayer(Callback * callback, AudioOutput * audioOutput) :
     mVideoClockDrift(-1),
     mClockBase(-1),
     mMaxPacketBufferSize(5 * 1024 * 1024),
-    mMaxBufferDuration(2),
+    mMaxBufferDuration(5),
     mMaxFrameQueueSize(40),
     mPosition(-1),
     mDuration(-1),
@@ -29,6 +29,7 @@ MiniPlayer::MiniPlayer(Callback * callback, AudioOutput * audioOutput) :
     mTotalBytes(0),
     mDownloadSpeed(0),
     mFps(0),
+    mEndReached(false),
     mState(State::Stopped)
 {
     qDebug() << __FUNCTION__;
@@ -153,6 +154,7 @@ void MiniPlayer::stopThread()
     mTotalBytes = 0;
     mDownloadSpeed = 0;
     mFps = 0;
+    mEndReached = false;
 
     qDebug() << __FUNCTION__ << "end";
 }
@@ -199,6 +201,7 @@ void MiniPlayer::openThread()
     mDownloadSpeed = 0;
     mFps = 0;
     mSynced = false;
+    mEndReached = false;
     setBuffering(true);
     //-----------------------------------------------
     bool success = false;
@@ -248,16 +251,24 @@ void MiniPlayer::openThread()
         auto codecType = mFormatContext->streams[i]->codec->codec_type;
         if (codecType == AVMediaType::AVMEDIA_TYPE_VIDEO)
         {
+            if(mVideoStream)
+                continue;
             mVideoStream = mFormatContext->streams[i];
             mVideoWidth = mVideoStream->codec->width;
             mVideoHeight = mVideoStream->codec->height;
-            mVideoPacketQueue.setTimeBase(av_q2d(mVideoStream->time_base));
+            auto timeBase = av_q2d(mVideoStream->time_base);
+            mVideoPacketQueue.setTimeBase(timeBase);
+            mVideoFrameQueue.setTimeBase(timeBase);
             qDebug() << __FUNCTION__ << "video size width:" << mVideoWidth << ", height:" << mVideoHeight;
         }
         else if(codecType == AVMediaType::AVMEDIA_TYPE_AUDIO)
         {
+            if(mAudioStream)
+                continue;
             mAudioStream = mFormatContext->streams[i];
-            mAudioPacketQueue.setTimeBase(av_q2d(mAudioStream->time_base));;
+            auto timeBase = av_q2d(mAudioStream->time_base);
+            mAudioPacketQueue.setTimeBase(timeBase);
+            mAudioFrameQueue.setTimeBase(timeBase);
         }
     }
 
@@ -307,6 +318,7 @@ void MiniPlayer::readPacketThread()
 
     AVPacket packet = { 0 };
     bool eof = false;
+    bool feof = false;
 
     for(; !mAbort; )
     {
@@ -324,6 +336,7 @@ void MiniPlayer::readPacketThread()
             mAudioOutput->stop();
             mSynced = false;
             eof = false;
+            feof = false;
             clearClock();
 
             auto seekToPosition = mSeekToPosition;
@@ -348,42 +361,67 @@ void MiniPlayer::readPacketThread()
         if(packetBufferSize > mMaxPacketBufferSize || eof)
         {
             setBuffering(false);
-            if(eof)
+            bool empty = mVideoPacketQueue.size() == 0 && mAudioPacketQueue.size() == 0 &&
+                    mVideoFrameQueue.size() == 0 && mAudioFrameQueue.size() == 0;
+
+            if(empty && eof)
             {
-                if(mVideoPacketQueue.size() == 0 && mAudioPacketQueue.size() == 0 &&
-                    mVideoFrameQueue.size() == 0 && mAudioFrameQueue.size() == 0)
-                {
-                    qWarning() << __FUNCTION__ << "packet buffer size:" << packetBufferSize << ", eof:" << eof;
-                    mCallback->onEndReached();
-                    break;
+                mAbort = true;
+                if(mVideoDecodeThread.joinable())
+                    mVideoDecodeThread.join();
+                if(mAudioDecodeThread.joinable())
+                    mAudioDecodeThread.join();
+                if(mVideoRenderThread.joinable())
+                    mVideoRenderThread.join();
+                if(mAudioRenderThread.joinable())
+                    mAudioRenderThread.join();
+                if(mFormatContext) {
+                    avcodec_close(mVideoStream->codec);
+                    avcodec_close(mAudioStream->codec);
+                    avformat_close_input(&mFormatContext);
+                    mVideoStream = nullptr;
+                    mAudioStream = nullptr;
                 }
+                mAbort = false;
+                if(mAudioInited)
+                {
+                    mAudioInited = false;
+                    mAudioOutput->close();
+                }
+                clearClock();
+                mSeekable = false;
+                mSeekToPosition = -1;
+                mTotalBytes = 0;
+                mDownloadSpeed = 0;
+                mFps = 0;
+                mSynced = false;
+                setBuffering(false);
+                mEndReached = feof;
+                changeState(-1, State::Stopped);
+                break;
             }
+
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
             continue;
         }
 
-        if(mVideoPacketQueue.size() == 0 || mVideoFrameQueue.size() == 0)
+        if(!mBuffering && (mVideoPacketQueue.size() == 0 || mVideoFrameQueue.size() == 0))
             setBuffering(true);
 
         av_init_packet(&packet);
         int ret = av_read_frame(mFormatContext, &packet);
         if (ret < 0)
         {
-            if(ret == AVERROR_EOF || avio_feof(mFormatContext->pb))
-            {
-                qWarning() << __FUNCTION__ << "av_read_frame" << "EOF" << ret;
-                eof = true;
-                continue;
-            }
-            else if (ret == AVERROR(EAGAIN))
+            if(ret == AVERROR(EAGAIN))
             {
                 qWarning() << __FUNCTION__ << "av_read_frame" << "EAGAIN" << ret;
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
                 continue;
             }
-
-            qWarning() << __FUNCTION__ << "av_read_frame" << "failure todo" << ret;
             eof = true;
+            //feof = ret == AVERROR_EOF || avio_feof(mFormatContext->pb);
+            feof = ret == AVERROR_EOF;
+            qWarning() << __FUNCTION__ << "av_read_frame" << ret << ",feof:" << feof;
             continue;
         }
 
@@ -393,15 +431,18 @@ void MiniPlayer::readPacketThread()
         {
             av_dup_packet(&packet);
             mVideoPacketQueue.append(packet);
-            //----------------------------------------------------------------------------
-            auto bufferedDuration = mVideoPacketQueue.duration();
-            if(bufferedDuration >= mMaxBufferDuration && mVideoFrameQueue.size() > 0)
-                setBuffering(false);
         }
         else if (packet.stream_index == mAudioStream->index)
         {
             av_dup_packet(&packet);
             mAudioPacketQueue.append(packet);
+        }
+
+        if(mBuffering)
+        {
+            auto bufferedDuration = mVideoPacketQueue.duration() + mVideoFrameQueue.duration();
+            if(bufferedDuration >= mMaxBufferDuration && mVideoFrameQueue.size() > 0)
+                setBuffering(false);
         }
     }
 

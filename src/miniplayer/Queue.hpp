@@ -17,7 +17,10 @@ namespace miniplayer
 class AVFrameQueue
 {
 public:
-    AVFrameQueue() {}
+    AVFrameQueue() :
+        mTimeBase(0),
+        mDuration(0)
+    {}
 
     ~AVFrameQueue()
     {
@@ -29,6 +32,7 @@ public:
         //qDebug() << __FUNCTION__;
         std::lock_guard<std::mutex> l(mMutex);
         mDatas.push_back(frame);
+        mDuration += static_cast<int64_t>(frame->pkt_duration * mTimeBase * 1000);
     }
 
     bool acquire(AVFrame** frame)
@@ -38,6 +42,7 @@ public:
             return false;
         *frame = mDatas.front();
         mDatas.pop_front();
+        mDuration -= static_cast<int64_t>((*frame)->pkt_duration * mTimeBase * 1000);
         return true;
     }
 
@@ -46,6 +51,7 @@ public:
         std::lock_guard<std::mutex> l(mMutex);
         if(mDatas.size() > 0)
         {
+            mDuration = 0;
             for (auto& data : mDatas)
                 av_frame_free(&data);
             mDatas.clear();
@@ -58,9 +64,21 @@ public:
         return mDatas.size();
     }
 
+    void setTimeBase(double timeBase)
+    {
+        mTimeBase = timeBase;
+    }
+
+    double duration() const
+    {
+        return mDuration / 1000.f;
+    }
+
 private:
     mutable std::mutex mMutex;
     std::list<AVFrame *> mDatas;
+    double mTimeBase;
+    int64_t mDuration;
 };
 
 class AVPacketQueue
@@ -138,7 +156,7 @@ public:
 
     double duration() const
     {
-        return mDuration / 1000.0f;
+        return mDuration / 1000.f;
     }
 
     bool isFlushPacket(AVPacket & pkt) const

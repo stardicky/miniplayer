@@ -35,8 +35,10 @@ public:
         size_t audioPacketQueueSize;
         size_t videoFrameQueueSize;
         size_t audioFrameQueueSize;
-        double videoBufferDuration;
-        double audioBufferDuration;
+        double videoPacketQueueDuration;
+        double audioPacketQueueDuration;
+        double videoFrameQueueDuration;
+        double audioFrameQueueDuration;
         double videoClock;
         double audioClock;
     } DumpInfo;
@@ -54,7 +56,6 @@ public:
     public:
         virtual void onVideoRender(AVFrame * frame) = 0;
         virtual void onPositionChanged(double pos) = 0;
-        virtual void onEndReached() = 0;
         virtual void onStateChanged(int state) = 0;
         virtual void onBufferingChanged(bool buffering) = 0;
     };
@@ -88,6 +89,7 @@ private:
     std::atomic_bool mSeekable;
     std::atomic_bool mSynced;
     std::atomic_bool mBuffering;
+    std::atomic_bool mEndReached;
     std::atomic_int64_t mTotalBytes;
     std::atomic_int64_t mDownloadSpeed;
     std::atomic_int mFps;
@@ -176,6 +178,7 @@ public:
     bool isBuffering() const { return mBuffering; }
     int64_t getDownloadSpeed() const { return mDownloadSpeed; }
     int getFps() const { return mFps; }
+    bool isEndReached() const { return mEndReached; }
 
     void dump(DumpInfo & info) const
     {
@@ -186,8 +189,10 @@ public:
         info.packetBufferSize = mVideoPacketQueue.dataSize() + mAudioPacketQueue.dataSize();
         info.maxPacketBufferSize = mMaxPacketBufferSize;
         info.maxFrameQueueSize = mMaxFrameQueueSize;
-        info.videoBufferDuration = mVideoPacketQueue.duration();
-        info.audioBufferDuration = mAudioPacketQueue.duration();
+        info.videoPacketQueueDuration = mVideoPacketQueue.duration();
+        info.audioPacketQueueDuration = mAudioPacketQueue.duration();
+        info.videoFrameQueueDuration = mVideoFrameQueue.duration();
+        info.audioFrameQueueDuration = mAudioFrameQueue.duration();
         info.videoClock = videoClock();
         info.audioClock = audioClock();
     }

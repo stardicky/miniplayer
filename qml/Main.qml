@@ -57,13 +57,15 @@ Window {
             if(!ctlProgress.pressed)
                 ctlProgress.value = position;
         }
-        onEndReached: {
-            txtPosition.text = "00:00:00";
-            ctlProgress.value = 0;
-        }
         onStateChanged: {
             console.log("onStateChanged",formatState(ctlPlayer.state));
             updateState();
+            if(ctlPlayer.state === MiniPlayer.Stopped && ctlPlayer.endReached)
+            {
+                //console.log("endReached");
+                txtPosition.text = "00:00:00";
+                ctlProgress.value = 0;
+            }
         }
     }
 
@@ -144,12 +146,10 @@ Window {
                         "V:    " + dumpInfo.videoClock.toFixed(3) + "\r\n" +
                         "A:    " + dumpInfo.audioClock.toFixed(3) + "\r\n" +
                         "A-V:  " + (dumpInfo.audioClock - dumpInfo.videoClock).toFixed(3) + "\r\n" +
-                        "VPQ:  " + dumpInfo.videoPacketQueueSize + "\r\n" +
-                        "APQ:  " + dumpInfo.audioPacketQueueSize + "\r\n" +
-                        "VFQ:  " + dumpInfo.videoFrameQueueSize + "\r\n" +
-                        "AFQ:  " + dumpInfo.audioFrameQueueSize + "\r\n" +
-                        "VBD:  " + dumpInfo.videoBufferDuration.toFixed(3) + "\r\n" +
-                        "ABD:  " + dumpInfo.audioBufferDuration.toFixed(3) + "\r\n" +
+                        "VPQ:  " + dumpInfo.videoPacketQueueSize + "(" + dumpInfo.videoPacketQueueDuration.toFixed(3) + "s)\r\n" +
+                        "APQ:  " + dumpInfo.audioPacketQueueSize + "(" + dumpInfo.audioPacketQueueDuration.toFixed(3) + "s)\r\n" +
+                        "VFQ:  " + dumpInfo.videoFrameQueueSize + "(" + dumpInfo.videoFrameQueueDuration.toFixed(3) + "s)\r\n" +
+                        "AFQ:  " + dumpInfo.audioFrameQueueSize + "(" + dumpInfo.audioFrameQueueDuration.toFixed(3) + "s)\r\n" +
                         "BS:   " + dumpInfo.packetBufferSize + "/" + dumpInfo.maxPacketBufferSize;
         }
     }
@@ -237,7 +237,7 @@ Window {
         anchors.bottomMargin: 5
         anchors.rightMargin: 5
         color: "#80000000"
-        height: 180
+        height: 150
         width: 140
 
         Text {

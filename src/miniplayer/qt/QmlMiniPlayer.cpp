@@ -69,11 +69,6 @@ void QmlMiniPlayer::onPositionChanged(double pos)
     emit positionChanged(pos);
 }
 
-void QmlMiniPlayer::onEndReached()
-{
-    emit endReached();
-}
-
 void QmlMiniPlayer::onStateChanged(int state)
 {
     emit stateChanged((State)state);
@@ -112,6 +107,11 @@ long QmlMiniPlayer::downloadSpeed()
 int QmlMiniPlayer::fps()
 {
     return mPlayer->getFps();
+}
+
+bool QmlMiniPlayer::endReached()
+{
+    return mPlayer->isEndReached();
 }
 
 void QmlMiniPlayer::mute()
